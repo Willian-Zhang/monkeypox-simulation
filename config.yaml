@@ -5,8 +5,8 @@ single_rate: 0.5
 homo_rate: 0.1
 
 infection_rates:
-  male: 0.5
-  female: 0.1
+  male: 0.8
+  female: 0.05
 cure_days: 10
 
 affair_rate: 0.1
