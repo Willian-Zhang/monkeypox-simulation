@@ -8,8 +8,8 @@ import wandb
 
 config = OmegaConf.load("config.yaml")
 
-# wandb.init(project="monkeypox-simulation", entity="willian")
-# wandb.config = config
+wandb.init(project="monkeypox-simulation", entity="willian")
+wandb.config = config
 
 @dataclass()
 class Person:
@@ -29,8 +29,8 @@ class Person:
         
     def try_infect(self):
         if self.positive:
-            onset += 1
-            if onset == config.cure_days:
+            self.onset += 1
+            if self.onset > config.cure_days:
                 self.immued_infection = True
                 self.positive = False
             return 
@@ -120,7 +120,9 @@ class World:
             "infected": len(infected),
             "male_infected": male_len,
             "feml_infected": len(infected) - male_len,
-            "homo_infected": homo_len
+            "homo_infected": homo_len,
+            "male_homo_infected": male_homo_len,
+            "feml_homo_infected": feml_homo_len,
         }
     
     def give_me_someone_random(self, gender: bool, abandened_males: Set[Person], abandened_femls: Set[Person]) -> Optional[Person]:
@@ -155,11 +157,20 @@ class World:
             if sexmate:
                 p.intercourse(sexmate)
             
-    def run(self, days: int):
+    def run(self, days: int, initial_infections = 10):
+        for i, p in enumerate(self.population):
+            if i < initial_infections:
+                p.positive = True
+            else:
+                break
+        print("Simulation started")
         for d in range(days):
+            # print(self.statistics(d))
             self.one_day_past()
-            print(self.statistics(d))
-            # wandb.log(self.statistics())
+            
+            wandb.log(self.statistics(d))
+        # print(self.statistics(d+1))
+        wandb.log(self.statistics(d+1))
         
 def main():
     world = World()

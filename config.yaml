@@ -1,6 +1,6 @@
 # percentage of malers in the population
 gender_ratio: 0.5
-population_size: 1000
+population_size: 100000
 single_rate: 0.5
 homo_rate: 0.1
 
@@ -11,4 +11,4 @@ cure_days: 10
 
 affair_rate: 0.1
 
-days: 3
+days: 365
