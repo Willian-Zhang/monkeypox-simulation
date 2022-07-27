@@ -11,14 +11,17 @@ config = OmegaConf.load("config.yaml")
 # wandb.init(project="monkeypox-simulation", entity="willian")
 # wandb.config = config
 
-@dataclass
+@dataclass()
 class Person:
+    id: int
     gender: bool
+    affair_rate: float
     spouse: Optional[Person] = None
+    
     positive: bool = False
     immued_infection: bool = False
     onset: int = 0
-    affair_rate: float = 0.0 
+    
     
     def marry(self, other: Person):
         other.spouse = self
@@ -41,7 +44,10 @@ class Person:
     def intercourse(self, other: Person):
         if self.positive:
             other.try_infect()
-        
+
+    def __hash__(self): 
+        return hash(self.id)
+
 
 @dataclass
 class World:
@@ -54,16 +60,25 @@ class World:
     free_femls: Set[Person] = field(default_factory=set)
     
     def __init__(self) -> None:
-        super().__init__() 
+        self.males = set()
+        self.femls = set()
+        self.population = set()
+        self.free = set()
+        self.攻め = set()
+        self.free_males = set()
+        self.free_femls = set()
         # fill in world and groups
         print("Initializing world...")
         
         single_males = set()
         single_femls = set()
-        for _ in range(config.population_size):
-            p = Person(gender=ra.random() < config.gender_ratio)
-            # TODO: use distribition
-            p.affair_rate = config.affair_rate
+        for id in range(config.population_size):
+            
+            p = Person(id=id,
+                       gender=ra.random() < config.gender_ratio,
+                       affair_rate=config.affair_rate, # TODO: use distribition
+                )
+            
             if p.gender:
                 self.males.add(p)
                 single_males.add(p)
@@ -96,10 +111,10 @@ class World:
                 
     def statistics(self, day: int = 0) -> Dict[str, float]:
         infected = set(p for p in self.population if p.positive)
-        male_len = len(1 for p in infected if p.gender)
-        homo_len = len(1 for p in infected if p.spouse and p.gender == p.spouse.gender)
-        male_homo_len = len(1 for p in infected if p.spouse and p.gender and p.gender == p.spouse.gender)
-        feml_homo_len = len(1 for p in infected if p.spouse and (not p.gender) and p.gender == p.spouse.gender)
+        male_len = len(tuple(1 for p in infected if p.gender))
+        homo_len = len(tuple(1 for p in infected if p.spouse and p.gender == p.spouse.gender))
+        male_homo_len = len(tuple(1 for p in infected if p.spouse and p.gender and p.gender == p.spouse.gender))
+        feml_homo_len = len(tuple(1 for p in infected if p.spouse and (not p.gender) and p.gender == p.spouse.gender))
         return {
             "day": day,
             "infected": len(infected),
@@ -108,19 +123,23 @@ class World:
             "homo_infected": homo_len
         }
     
-    def give_me_someone_random(self, gender: bool, abandened_males: Set[Person], abandened_femls: Set[Person]) -> Person:
+    def give_me_someone_random(self, gender: bool, abandened_males: Set[Person], abandened_femls: Set[Person]) -> Optional[Person]:
         if ra.random() < config.homo_rate:
-            gender_group = self.free_males + abandened_males if gender else self.free_femls + abandened_femls
+            gender_group = self.free_males & abandened_males if gender else self.free_femls & abandened_femls
         else:
-            gender_group = self.free_femls + abandened_femls if gender else self.free_males + abandened_males
-        return ra.choice(gender_group)
+            gender_group = self.free_femls & abandened_femls if gender else self.free_males & abandened_males
+        if len(gender_group) > 0:
+            temp = list(gender_group)
+            return ra.choice(temp)
+        else:
+            return None
     
     def one_day_past(self):
-        abandened_males: Set[Person] = field(default_factory=set)
-        abandened_femls: Set[Person] = field(default_factory=set)
+        abandened_males: Set[Person] = set()
+        abandened_femls: Set[Person] = set()
         for 攻 in self.攻め:
             if 攻.spouse:
-                p: Person = 攻 if ra.random()> 0.5 else p.spouse 
+                p: Person = 攻 if ra.random()> 0.5 else 攻.spouse 
                 if ra.random() > p.affair_rate:
                     sexmate: Person = p.spouse
                 else:
@@ -129,10 +148,12 @@ class World:
                     abandened_group.add(p.spouse)
             else:
                 sexmate = self.give_me_someone_random(p.gender, abandened_males, abandened_femls)
-            p.intercourse(sexmate)
+            if sexmate:
+                p.intercourse(sexmate)
         for p in self.free:
             sexmate = self.give_me_someone_random(p.gender, abandened_males, abandened_femls)
-            p.intercourse(sexmate)
+            if sexmate:
+                p.intercourse(sexmate)
             
     def run(self, days: int):
         for d in range(days):
