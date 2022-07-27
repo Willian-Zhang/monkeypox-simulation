@@ -30,6 +30,7 @@ class Person:
     def try_infect(self):
         if self.positive:
             self.onset += 1
+            # TODO: cure after distibiution of immunity
             if self.onset > config.cure_days:
                 self.immued_infection = True
                 self.positive = False
